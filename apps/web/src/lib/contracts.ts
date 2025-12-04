@@ -2,8 +2,8 @@
 
 export const CONTRACTS = {
   DailyTournament: {
-    // Celo Sepolia Testnet (chain ID: 11142220) - uses cUSD
-    11142220: process.env.NEXT_PUBLIC_TOURNAMENT_CONTRACT_SEPOLIA as `0x${string}` || '0x0fA17619c768416b8246aAC388DCd66a23695eb4',
+    // Celo Sepolia Testnet (chain ID: 11142220) - uses cUSD (0xdE9e...0aB00b)
+    11142220: process.env.NEXT_PUBLIC_TOURNAMENT_CONTRACT_SEPOLIA as `0x${string}` || '0xcC36a406684c313f29848c2A0AfBdFc9A3B5503B',
     // Celo Mainnet
     42220: process.env.NEXT_PUBLIC_TOURNAMENT_CONTRACT_MAINNET as `0x${string}` || '0x0000000000000000000000000000000000000000',
   }
