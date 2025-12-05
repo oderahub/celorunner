@@ -578,10 +578,29 @@ export default function CeloRidersGame({ contractAddress }: CeloRidersGameProps)
     const score = event.detail.score;
     setCurrentScore(score);
 
-    console.log('Game over! Score:', score);
+    console.log('[GAME OVER] 🎮 Game ended! Score:', score);
+    console.log('[GAME OVER] 📊 isConnected:', isConnected);
+    console.log('[GAME OVER] 📊 hasStaked:', hasStaked);
+    console.log('[GAME OVER] 📊 address:', address);
 
-    if (!isConnected || !hasStaked) {
-      console.log('Not connected or not staked, skipping score submission');
+    // Double-check localStorage for staked status (in case state was lost)
+    const storageKey = `hasStaked_${address}_${contractAddress}`;
+    const storedStake = localStorage.getItem(storageKey);
+    console.log('[GAME OVER] 💾 localStorage stake status:', storedStake);
+
+    // If localStorage says they staked but state doesn't, update state
+    if (storedStake === 'true' && !hasStaked) {
+      console.log('[GAME OVER] 🔄 Restoring stake status from localStorage');
+      setHasStaked(true);
+    }
+
+    // Use either current state or localStorage value
+    const actuallyHasStaked = hasStaked || storedStake === 'true';
+
+    console.log('[GAME OVER] ✅ Final check - Connected:', isConnected, 'Staked:', actuallyHasStaked);
+
+    if (!isConnected || !actuallyHasStaked) {
+      console.log('[GAME OVER] ❌ Cannot submit - Connected:', isConnected, 'Staked:', actuallyHasStaked);
       setNotification({
         show: true,
         title: 'Game Over!',
@@ -591,6 +610,7 @@ export default function CeloRidersGame({ contractAddress }: CeloRidersGameProps)
       return;
     }
 
+    console.log('[GAME OVER] ✅ Showing score submission modal');
     setShowScoreModal(true);
   };
 
