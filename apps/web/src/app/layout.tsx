@@ -4,6 +4,7 @@ import './globals.css';
 
 import { Navbar } from '@/components/navbar';
 import { WalletProvider } from "@/components/wallet-provider"
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -33,13 +34,27 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        {/* Preload critical fonts */}
+        <link
+          rel="preconnect"
+          href="https://fonts.googleapis.com"
+        />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
+      </head>
       <body className={inter.className}>
-        <div className="relative flex min-h-screen flex-col">
-          <WalletProvider>
-            <Navbar />
-            {children}
-          </WalletProvider>
-        </div>
+        <ErrorBoundary>
+          <div className="relative flex min-h-screen flex-col">
+            <WalletProvider>
+              <Navbar />
+              {children}
+            </WalletProvider>
+          </div>
+        </ErrorBoundary>
       </body>
     </html>
   );
