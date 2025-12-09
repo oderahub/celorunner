@@ -1,8 +1,8 @@
 // Simplified trick message display - single reusable text object
 export class SimpleTrickMessage {
   private scene: Phaser.Scene;
-  private messageText?: Phaser.GameObjects.Text;
-  private starText?: Phaser.GameObjects.Text;
+  private messageText!: Phaser.GameObjects.Text;
+  private starText!: Phaser.GameObjects.Text;
   private messageTimer?: Phaser.Time.TimerEvent;
   private messageY: number = 300;
   
