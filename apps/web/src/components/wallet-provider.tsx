@@ -58,51 +58,76 @@ const queryClient = new QueryClient();
 
 function WalletProviderInner({ children }: { children: React.ReactNode }) {
   const { connect, connectors } = useConnect();
-  const { isConnected } = useAccount();
-  const [attempted, setAttempted] = useState(false);
+  const { isConnected, address } = useAccount();
+  const [hasTried, setHasTried] = useState(false);
 
   // Monitor connection status and log results
   useEffect(() => {
-    if (isConnected || attempted) return;
+    if (isConnected || hasTried) return;
 
-    const tryConnectMiniPay = async () => {
-      if (typeof window === "undefined" || !window.ethereum) return;
+    const tryConnect = async () => {
+      if (!window.ethereum || !(window.ethereum as any).isMiniPay) return;
 
-      // THIS IS THE KEY: MiniPay requires manual activation (Dec 2025)
-      if ((window.ethereum as any)?.isMiniPay) {
-        try {
-          console.log("✅ MiniPay detected — forcing eth_requestAccounts");
+      console.log("🎯 MINIPAY DETECTED — WAKING UP PROVIDER...");
 
-          // This wakes up MiniPay and makes it behave like a real provider
-          await window.ethereum.request({ method: "eth_requestAccounts" });
+      try {
+        // THIS IS THE MAGIC LINE — triggers accountsChanged
+        const accounts = await window.ethereum.request({
+          method: "eth_requestAccounts",
+        });
 
-          // Now find and connect the injected connector
-          const injected = connectors.find(
-            (c) => c.id === "injected" || c.type === "injected"
-          );
+        if (!accounts || accounts.length === 0) {
+          console.warn("⚠️ No accounts returned");
+          return;
+        }
 
-          if (injected) {
-            await connect({ connector: injected });
-            console.log("✅ Successfully connected to MiniPay!");
-          }
-        } catch (err: any) {
-          // User rejected or something went wrong
-          console.warn("⚠️ MiniPay connection failed or rejected:", err.message);
-        } finally {
-          setAttempted(true);
+        console.log("✅ MINIPAY ACCOUNTS:", accounts);
+
+        // Find injected connector
+        const injected = connectors.find(c => c.id === "injected");
+        if (injected) {
+          // This will now work because accountsChanged fired
+          await connect({ connector: injected });
+          console.log("✅ MINIPAY CONNECTED SUCCESSFULLY!");
+        }
+      } catch (err: any) {
+        console.warn("⚠️ MiniPay eth_requestAccounts rejected:", err.message);
+      } finally {
+        setHasTried(true);
+      }
+    };
+
+    // Try 3 times — MiniPay iframe can be slow
+    tryConnect();
+    const t1 = setTimeout(tryConnect, 600);
+    const t2 = setTimeout(tryConnect, 1200);
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [connect, connectors, isConnected, hasTried]);
+
+  // CRITICAL: Listen for accountsChanged and reconnect if needed
+  useEffect(() => {
+    if (!window.ethereum) return;
+
+    const handler = (accounts: string[]) => {
+      console.log("🔄 accountsChanged fired:", accounts);
+      if (accounts.length > 0 && !isConnected) {
+        const injected = connectors.find(c => c.id === "injected");
+        if (injected) {
+          connect({ connector: injected });
         }
         return true;
       }
     };
 
-    // Try immediately
-    tryConnectMiniPay();
-
-    // Also try again after a delay (in case provider loads late)
-    const timer = setTimeout(tryConnectMiniPay, 800);
-
-    return () => clearTimeout(timer);
-  }, [connect, connectors, isConnected, attempted]);
+    window.ethereum.on("accountsChanged", handler);
+    return () => {
+      window.ethereum.removeListener("accountsChanged", handler);
+    };
+  }, [connect, connectors, isConnected]);
 
   return <>{children}</>;
 }
