@@ -5,7 +5,7 @@ import "@rainbow-me/rainbowkit/styles.css";
 import { injectedWallet } from "@rainbow-me/rainbowkit/wallets";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { WagmiProvider, createConfig, http, useConnect } from "wagmi";
+import { WagmiProvider, createConfig, http, useConnect, useAccount } from "wagmi";
 import { celo } from "wagmi/chains";
 import { defineChain } from "viem";
 
@@ -48,69 +48,59 @@ const wagmiConfig = createConfig({
     [celo.id]: http(),
   },
   ssr: true,
+  // CRUCIAL FOR MINIPAY (Dec 2025)
+  pollingInterval: 4_000,
+  // Prevents wagmi from thinking no wallet is present
+  syncConnectedChain: true,
 });
 
 const queryClient = new QueryClient();
 
 function WalletProviderInner({ children }: { children: React.ReactNode }) {
   const { connect, connectors } = useConnect();
-  const [hasAttempted, setHasAttempted] = useState(false);
+  const { isConnected } = useAccount();
+  const [attempted, setAttempted] = useState(false);
 
   useEffect(() => {
-    // Prevent multiple attempts
-    if (hasAttempted) return;
+    if (isConnected || attempted) return;
 
-    const attemptMiniPayConnect = () => {
-      if (typeof window === "undefined" || !window.ethereum) return false;
+    const tryConnectMiniPay = async () => {
+      if (typeof window === "undefined" || !window.ethereum) return;
 
-      // CRITICAL: MiniPay identifies itself like this
-      const isMiniPay = (window.ethereum as any)?.isMiniPay;
-      if (isMiniPay) {
-        console.log("✅ MiniPay detected! Attempting auto-connect...");
+      // THIS IS THE KEY: MiniPay requires manual activation (Dec 2025)
+      if ((window.ethereum as any)?.isMiniPay) {
+        try {
+          console.log("✅ MiniPay detected — forcing eth_requestAccounts");
 
-        // Find injected connector (RainbowKit creates it with id: "injected")
-        const injected = connectors.find(c => c.id === "injected" || c.name === "Injected");
+          // This wakes up MiniPay and makes it behave like a real provider
+          await window.ethereum.request({ method: "eth_requestAccounts" });
 
-        if (injected && (injected as any).ready) {
-          setHasAttempted(true);
-          connect({ connector: injected });
-          console.log("✅ Auto-connect to MiniPay successful");
-          return true;
-        } else {
-          console.log("⏳ MiniPay found but connector not ready yet...", {
-            hasInjected: !!injected,
-            ready: (injected as any)?.ready,
-            connectorsCount: connectors.length
-          });
+          // Now find and connect the injected connector
+          const injected = connectors.find(
+            (c) => c.id === "injected" || c.type === "injected"
+          );
+
+          if (injected) {
+            await connect({ connector: injected });
+            console.log("✅ Successfully connected to MiniPay!");
+          }
+        } catch (err: any) {
+          // User rejected or something went wrong
+          console.warn("⚠️ MiniPay connection failed or rejected:", err.message);
+        } finally {
+          setAttempted(true);
         }
       }
-      return false;
     };
 
     // Try immediately
-    if (attemptMiniPayConnect()) return;
+    tryConnectMiniPay();
 
-    // If not ready yet, poll aggressively (MiniPay provider loads async)
-    const interval = setInterval(() => {
-      if (attemptMiniPayConnect()) {
-        clearInterval(interval);
-      }
-    }, 300);
+    // Also try again after a delay (in case provider loads late)
+    const timer = setTimeout(tryConnectMiniPay, 800);
 
-    // Cleanup after 10 seconds max
-    const timeout = setTimeout(() => {
-      clearInterval(interval);
-      if (!hasAttempted) {
-        console.warn("⚠️ MiniPay auto-connect timed out after 10s");
-        setHasAttempted(true);
-      }
-    }, 10000);
-
-    return () => {
-      clearInterval(interval);
-      clearTimeout(timeout);
-    };
-  }, [connect, connectors, hasAttempted]);
+    return () => clearTimeout(timer);
+  }, [connect, connectors, isConnected, attempted]);
 
   return <>{children}</>;
 }
