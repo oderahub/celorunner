@@ -47,6 +47,9 @@ export default class Game extends Phaser.Scene {
   private gameStartTime = 0;
   private score = 0;
   private scoreText!: Phaser.GameObjects.Text;
+  private staminaText?: Phaser.GameObjects.Text;
+  private distanceText?: Phaser.GameObjects.Text;
+  private groundSegments?: any;
   private lastDifficulty = -1;
   private obstacleTimer: Phaser.Time.TimerEvent | null = null;
   private enemyTimer: Phaser.Time.TimerEvent | null = null;
@@ -108,7 +111,7 @@ export default class Game extends Phaser.Scene {
   private powerUpRechargeTimer?: Phaser.Time.TimerEvent;
   private metalBootUses = 0; // Track remaining uses for metal boot
   private lastPowerUpSpawnTime = 0;
-  private powerUpTimer!: Phaser.Time.TimerEvent;
+  private powerUpTimer: Phaser.Time.TimerEvent | null = null;
   private fireballs!: Phaser.GameObjects.Group;
   private isStomping = false;
   private stompHitbox!: Phaser.GameObjects.Rectangle;
@@ -139,6 +142,7 @@ export default class Game extends Phaser.Scene {
     container: Phaser.GameObjects.Container;
     text: Phaser.GameObjects.Image;
     cross: Phaser.GameObjects.Image | null;
+    imageKey: string;
   }> = [];
   
   // Combo system
@@ -376,10 +380,10 @@ export default class Game extends Phaser.Scene {
     if (this.challengeDisplay) {
       this.challengeDisplay.destroy();
     }
-    this.challengeDisplay = null;
-    this.challengeWaveText = null;
-    this.challengeDescText = null;
-    this.challengeProgressText = null;
+    this.challengeDisplay = undefined;
+    this.challengeWaveText = undefined;
+    this.challengeDescText = undefined;
+    this.challengeProgressText = undefined;
     
     // Force immediate display update after a short delay to ensure scene is ready
     this.time.delayedCall(100, () => {
@@ -1185,7 +1189,9 @@ export default class Game extends Phaser.Scene {
     const elementsToHide = ['pauseMenuBg', 'resumeBtn', 'musicToggle', 'songsOption', 'sfxToggle', 'menuBtn'];
     elementsToHide.forEach(name => {
       const element = this.children.getByName(name);
-      if (element) element.setVisible(false);
+      if (element && 'setVisible' in element) {
+        (element as any).setVisible(false);
+      }
     });
     
     // Create music submenu background - extend to right edge
@@ -1286,7 +1292,9 @@ export default class Game extends Phaser.Scene {
       // Show main pause menu elements again
       elementsToHide.forEach(name => {
         const element = this.children.getByName(name);
-        if (element) element.setVisible(true);
+        if (element && 'setVisible' in element) {
+          (element as any).setVisible(true);
+        }
       });
     });
   }
@@ -4044,7 +4052,7 @@ export default class Game extends Phaser.Scene {
     ];
     
     // Randomize offsets for each fire sprite
-    const offsets = [];
+    const offsets: { x: number; y: number }[] = [];
     zones.forEach((zone, index) => {
       const randomY = zone.minY + Math.random() * (zone.maxY - zone.minY);
       const randomX = (Math.random() - 0.5) * 25; // -12.5 to +12.5 horizontal spread
@@ -4113,9 +4121,9 @@ export default class Game extends Phaser.Scene {
     }
     
     // Clear individual references
-    this.fireShoulder = null;
-    this.fireBody = null;
-    this.fireRight = null;
+    this.fireShoulder = undefined;
+    this.fireBody = undefined;
+    this.fireRight = undefined;
     
     // Stop color flash
     if (this.fireColorTimer) {
@@ -5166,10 +5174,10 @@ export default class Game extends Phaser.Scene {
                 
                 // Update target to current player position
                 if (tween.data && tween.data[0]) {
-                  tween.data[0].end = this.player.x;
+                  (tween.data[0] as any).end = this.player.x;
                 }
                 if (tween.data && tween.data[1]) {
-                  tween.data[1].end = this.player.y;
+                  (tween.data[1] as any).end = this.player.y;
                 }
               },
               onComplete: () => {
@@ -5184,10 +5192,10 @@ export default class Game extends Phaser.Scene {
                     onUpdate: (tween) => {
                       // Keep updating target position
                       if (tween.data && tween.data[0]) {
-                        tween.data[0].end = this.player.x;
+                        (tween.data[0] as any).end = this.player.x;
                       }
                       if (tween.data && tween.data[1]) {
-                        tween.data[1].end = this.player.y;
+                        (tween.data[1] as any).end = this.player.y;
                       }
                     },
                     onComplete: () => {
@@ -5496,7 +5504,7 @@ export default class Game extends Phaser.Scene {
       // Clean up any existing invalid objects
       if (this.challengeDisplay) {
         this.challengeDisplay.destroy();
-        this.challengeDisplay = null;
+        this.challengeDisplay = undefined;
       }
       // Create new challenge display container - align with song title container
       this.challengeDisplay = this.add.container(520, 230);  // Changed from 510 to 520 to align
@@ -5549,8 +5557,8 @@ export default class Game extends Phaser.Scene {
         this.challengeWaveText.setText(`WAVE ${this.waveManager.getCurrentWave()}`);
       } catch (error) {
         console.error('[DEBUG] Error updating wave text, will recreate on next update:', error);
-        this.challengeWaveText = null;
-        this.challengeDisplay = null;
+        this.challengeWaveText = undefined;
+        this.challengeDisplay = undefined;
       }
     }
     
@@ -5579,8 +5587,8 @@ export default class Game extends Phaser.Scene {
           this.challengeDescText.setVisible(true);
         } catch (error) {
           console.error('[DEBUG] Error updating challenge description text, will recreate:', error);
-          this.challengeDescText = null;
-          this.challengeDisplay = null;
+          this.challengeDescText = undefined;
+          this.challengeDisplay = undefined;
         }
       }
       
@@ -5592,8 +5600,8 @@ export default class Game extends Phaser.Scene {
           this.challengeProgressText.setVisible(true);
         } catch (error) {
           console.error('[DEBUG] Error updating progress text, will recreate:', error);
-          this.challengeProgressText = null;
-          this.challengeDisplay = null;
+          this.challengeProgressText = undefined;
+          this.challengeDisplay = undefined;
         }
       }
     } else {
@@ -5606,8 +5614,8 @@ export default class Game extends Phaser.Scene {
           this.challengeDescText.setVisible(true);
         } catch (error) {
           console.error('[DEBUG] Error updating complete text, will recreate:', error);
-          this.challengeDescText = null;
-          this.challengeDisplay = null;
+          this.challengeDescText = undefined;
+          this.challengeDisplay = undefined;
         }
       }
       
@@ -5617,7 +5625,7 @@ export default class Game extends Phaser.Scene {
           this.challengeProgressText.setVisible(false);
         } catch (error) {
           console.error('[DEBUG] Error hiding progress text:', error);
-          this.challengeProgressText = null;
+          this.challengeProgressText = undefined;
         }
       }
     }

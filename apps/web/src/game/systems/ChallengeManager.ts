@@ -1,10 +1,11 @@
-export type ChallengeType = 
+export type ChallengeType =
   | 'collect_stars'
   | 'stomp_enemies'
   | 'survive_time'
   | 'get_combo'
   | 'no_damage'
-  | 'perform_tricks';
+  | 'perform_tricks'
+  | 'collect_powerups';
 
 export interface Challenge {
   id: string;
@@ -65,6 +66,11 @@ export class ChallengeManager {
       1: { description: 'Perform 5 Tricks', target: 5 },
       2: { description: 'Perform 8 Tricks', target: 8 },
       3: { description: 'Perform 12 Tricks', target: 12 }
+    },
+    'collect_powerups': {
+      1: { description: 'Collect 3 Power-ups', target: 3 },
+      2: { description: 'Collect 5 Power-ups', target: 5 },
+      3: { description: 'Collect 7 Power-ups', target: 7 }
     }
   };
   
