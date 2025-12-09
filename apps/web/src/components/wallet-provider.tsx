@@ -54,29 +54,63 @@ const queryClient = new QueryClient();
 
 function WalletProviderInner({ children }: { children: React.ReactNode }) {
   const { connect, connectors } = useConnect();
-  const [hasAttemptedConnection, setHasAttemptedConnection] = useState(false);
+  const [hasAttempted, setHasAttempted] = useState(false);
 
   useEffect(() => {
-    // Wait for connectors to be populated
-    if (connectors.length === 0) {
-      return;
-    }
+    // Prevent multiple attempts
+    if (hasAttempted) return;
 
-    // Only attempt connection once
-    if (hasAttemptedConnection) {
-      return;
-    }
+    const attemptMiniPayConnect = () => {
+      if (typeof window === "undefined" || !window.ethereum) return false;
 
-    // Check if the app is running inside MiniPay
-    if (window.ethereum && window.ethereum.isMiniPay) {
-      // Find the injected connector, which is what MiniPay uses
-      const injectedConnector = connectors.find((c) => c.id === "injected");
-      if (injectedConnector) {
-        setHasAttemptedConnection(true);
-        connect({ connector: injectedConnector });
+      // CRITICAL: MiniPay identifies itself like this
+      const isMiniPay = (window.ethereum as any)?.isMiniPay;
+      if (isMiniPay) {
+        console.log("✅ MiniPay detected! Attempting auto-connect...");
+
+        // Find injected connector (RainbowKit creates it with id: "injected")
+        const injected = connectors.find(c => c.id === "injected" || c.name === "Injected");
+
+        if (injected && (injected as any).ready) {
+          setHasAttempted(true);
+          connect({ connector: injected });
+          console.log("✅ Auto-connect to MiniPay successful");
+          return true;
+        } else {
+          console.log("⏳ MiniPay found but connector not ready yet...", {
+            hasInjected: !!injected,
+            ready: (injected as any)?.ready,
+            connectorsCount: connectors.length
+          });
+        }
       }
-    }
-  }, [connect, connectors, hasAttemptedConnection]);
+      return false;
+    };
+
+    // Try immediately
+    if (attemptMiniPayConnect()) return;
+
+    // If not ready yet, poll aggressively (MiniPay provider loads async)
+    const interval = setInterval(() => {
+      if (attemptMiniPayConnect()) {
+        clearInterval(interval);
+      }
+    }, 300);
+
+    // Cleanup after 10 seconds max
+    const timeout = setTimeout(() => {
+      clearInterval(interval);
+      if (!hasAttempted) {
+        console.warn("⚠️ MiniPay auto-connect timed out after 10s");
+        setHasAttempted(true);
+      }
+    }, 10000);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
+  }, [connect, connectors, hasAttempted]);
 
   return <>{children}</>;
 }
