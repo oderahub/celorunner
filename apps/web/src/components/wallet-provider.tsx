@@ -54,25 +54,34 @@ const queryClient = new QueryClient();
 
 function WalletProviderInner({ children }: { children: React.ReactNode }) {
   const { connect, connectors } = useConnect();
+  const [hasAttemptedConnection, setHasAttemptedConnection] = useState(false);
 
   useEffect(() => {
+    // Wait for connectors to be populated
+    if (connectors.length === 0) {
+      return;
+    }
+
+    // Only attempt connection once
+    if (hasAttemptedConnection) {
+      return;
+    }
+
     // Check if the app is running inside MiniPay
     if (window.ethereum && window.ethereum.isMiniPay) {
       // Find the injected connector, which is what MiniPay uses
       const injectedConnector = connectors.find((c) => c.id === "injected");
       if (injectedConnector) {
+        setHasAttemptedConnection(true);
         connect({ connector: injectedConnector });
       }
     }
-  }, [connect, connectors]);
+  }, [connect, connectors, hasAttemptedConnection]);
 
   return <>{children}</>;
 }
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-
   return (
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
