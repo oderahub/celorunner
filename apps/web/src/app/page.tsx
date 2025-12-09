@@ -3,15 +3,12 @@
 import { useChainId } from 'wagmi';
 import dynamic from 'next/dynamic';
 import { getTournamentContract } from "@/lib/contracts";
+import { GameLoader } from "@/components/game-loader";
 
 // Dynamically import CeloRidersGame with SSR disabled (Phaser needs browser APIs)
 const CeloRidersGame = dynamic(() => import("@/components/CeloRidersGame"), {
   ssr: false,
-  loading: () => (
-    <div className="flex items-center justify-center w-full h-screen bg-black">
-      <div className="text-white text-2xl">Loading game...</div>
-    </div>
-  ),
+  loading: () => <GameLoader />,
 });
 
 export default function Home() {
