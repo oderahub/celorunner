@@ -694,6 +694,31 @@ export default function CeloRidersGame({ contractAddress }: CeloRidersGameProps)
       />
 
       {/* Overlay UI */}
+      {!isConnected && isMiniPay && (
+        <div className="absolute inset-0 bg-black bg-opacity-95 flex items-center justify-center z-50">
+          <div className="bg-gradient-to-br from-green-600 to-emerald-700 p-8 rounded-2xl text-center max-w-sm mx-4 shadow-2xl">
+            <h2 className="text-3xl font-bold text-white mb-4">🎮 Ready to Play?</h2>
+            <p className="text-white mb-8 opacity-90 text-lg">
+              Tap below to connect your MiniPay wallet and start earning!
+            </p>
+            <button
+              onClick={async () => {
+                try {
+                  await window.ethereum.request({ method: "eth_requestAccounts" });
+                  // Force page reload to trigger wagmi connection
+                  window.location.reload();
+                } catch (err) {
+                  console.error("Connection failed:", err);
+                }
+              }}
+              className="bg-white text-green-700 font-bold text-xl px-8 py-4 rounded-full hover:scale-105 transition-transform shadow-lg"
+            >
+              🎯 Connect Wallet
+            </button>
+          </div>
+        </div>
+      )}
+
       {!isConnected && !isMiniPay && (
         <div className="absolute top-4 left-0 right-0 text-center px-4">
           <div className="bg-yellow-500 text-black px-6 py-3 rounded-lg inline-block font-bold text-sm sm:text-base">
