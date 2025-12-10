@@ -179,10 +179,11 @@ export default function CeloRidersGame({ contractAddress }: CeloRidersGameProps)
       setNotification({
         show: true,
         title: 'Staked!',
-        message: '1 cUSD paid. Game starting...',
+        message: '1 cUSD paid. Select character to start!',
         type: 'success'
       })
-      setTimeout(() => window.dispatchEvent(new CustomEvent('stakeConfirmed')), 1000)
+      // Don't automatically dispatch stakeConfirmed - let the user click the character
+      // This prevents race conditions and ensures the scene is ready
     }
   }, [hasEntryPaid, address, contractAddress])
   useEffect(() => {
@@ -199,6 +200,19 @@ export default function CeloRidersGame({ contractAddress }: CeloRidersGameProps)
   }, [hasScoreSubmitted, currentScore])
 
   // Leaderboard handler (unchanged — keep your existing one)
+
+  // Use refs to avoid stale closures
+  const isConnectedRef = useRef(isConnected)
+  const hasStakedRef = useRef(hasStaked)
+
+  // Keep refs up to date
+  useEffect(() => {
+    isConnectedRef.current = isConnected
+  }, [isConnected])
+
+  useEffect(() => {
+    hasStakedRef.current = hasStaked
+  }, [hasStaked])
 
   // Initialize Phaser
   useEffect(() => {
@@ -228,19 +242,33 @@ export default function CeloRidersGame({ contractAddress }: CeloRidersGameProps)
       scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH }
     }
     gameRef.current = new Phaser.Game(config)
-    window.addEventListener('gameStartRequested', () => {
-      if (isConnected && hasStaked) window.dispatchEvent(new CustomEvent('stakeConfirmed'))
-      else if (!isConnected) setShowConnectButton(true)
-      else setShowStakeModal(true)
-    })
-    window.addEventListener('gameOver', (e: any) => {
-      setCurrentScore(e.detail.score)
-      if (isConnected && hasStaked) setShowScoreModal(true)
-    })
-    return () => {
-      gameRef.current?.destroy(true)
+
+    // Use refs to get current values
+    const handleGameStartRequested = () => {
+      if (isConnectedRef.current && hasStakedRef.current) {
+        window.dispatchEvent(new CustomEvent('stakeConfirmed'))
+      } else if (!isConnectedRef.current) {
+        setShowConnectButton(true)
+      } else {
+        setShowStakeModal(true)
+      }
     }
-  }, [isConnected, hasStaked])
+
+    const handleGameOver = (e: any) => {
+      setCurrentScore(e.detail.score)
+      if (isConnectedRef.current && hasStakedRef.current) setShowScoreModal(true)
+    }
+
+    window.addEventListener('gameStartRequested', handleGameStartRequested)
+    window.addEventListener('gameOver', handleGameOver)
+
+    return () => {
+      window.removeEventListener('gameStartRequested', handleGameStartRequested)
+      window.removeEventListener('gameOver', handleGameOver)
+      gameRef.current?.destroy(true)
+      gameRef.current = null
+    }
+  }, [])
 
   const handleStakeConfirm = async () => {
     if (!isConnected || !address) return

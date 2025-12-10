@@ -1,0 +1,13 @@
+{
+  "name": "CeloRiders - Play to Earn Game",
+  "short_name": "CeloRiders",
+  "description": "Stake 1 CELO, compete daily, win prizes! GBA-style skateboarding game on Celo blockchain.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "orientation": "portrait",
+  "icons": [],
+  "categories": ["games", "entertainment"],
+  "screenshots": []
+}
