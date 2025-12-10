@@ -94,6 +94,7 @@ export default function CeloRidersGame({ contractAddress }: CeloRidersGameProps)
   const [showScoreModal, setShowScoreModal] = useState(false);
   const [currentScore, setCurrentScore] = useState(0);
   const [isSubmittingScore, setIsSubmittingScore] = useState(false);
+  const [showConnectPrompt, setShowConnectPrompt] = useState(false);
   const [notification, setNotification] = useState<{
     show: boolean;
     title: string;
@@ -494,15 +495,17 @@ export default function CeloRidersGame({ contractAddress }: CeloRidersGameProps)
     console.log('Game start requested. Connected:', isConnected, 'Has staked:', hasStaked);
 
     if (!isConnected) {
-      const message = isMiniPay
-        ? 'MiniPay wallet not detected. Please ensure you are using MiniPay.'
-        : 'Please connect your wallet to play CeloRiders!';
-      setNotification({
-        show: true,
-        title: 'Wallet Not Connected',
-        message,
-        type: 'warning'
-      });
+      if (isMiniPay) {
+        // Show beautiful connect screen only when player wants to play
+        setShowConnectPrompt(true);
+      } else {
+        setNotification({
+          show: true,
+          title: 'Wallet Required',
+          message: 'Please connect your wallet to play!',
+          type: 'warning'
+        });
+      }
       return;
     }
 
@@ -693,27 +696,32 @@ export default function CeloRidersGame({ contractAddress }: CeloRidersGameProps)
         onClose={() => setNotification({ ...notification, show: false })}
       />
 
-      {/* Overlay UI */}
-      {!isConnected && isMiniPay && (
+      {/* Connect Prompt — Only when player taps Play */}
+      {showConnectPrompt && isMiniPay && (
         <div className="absolute inset-0 bg-black bg-opacity-95 flex items-center justify-center z-50">
-          <div className="bg-gradient-to-br from-green-600 to-emerald-700 p-8 rounded-2xl text-center max-w-sm mx-4 shadow-2xl">
-            <h2 className="text-3xl font-bold text-white mb-4">🎮 Ready to Play?</h2>
-            <p className="text-white mb-8 opacity-90 text-lg">
-              Tap below to connect your MiniPay wallet and start earning!
+          <div className="bg-gradient-to-br from-green-600 to-emerald-700 p-10 rounded-3xl text-center max-w-md mx-6 shadow-2xl">
+            <h2 className="text-4xl font-bold text-white mb-6">Ready to Compete?</h2>
+            <p className="text-white text-xl mb-10 opacity-90">
+              Connect MiniPay to stake 1 cUSD and enter the daily tournament!
             </p>
             <button
               onClick={async () => {
+                setShowConnectPrompt(false);
                 try {
                   await window.ethereum.request({ method: "eth_requestAccounts" });
-                  // Force page reload to trigger wagmi connection
                   window.location.reload();
                 } catch (err) {
-                  console.error("Connection failed:", err);
+                  setNotification({
+                    show: true,
+                    title: 'Connection Failed',
+                    message: 'Please try again',
+                    type: 'error'
+                  });
                 }
               }}
-              className="bg-white text-green-700 font-bold text-xl px-8 py-4 rounded-full hover:scale-105 transition-transform shadow-lg"
+              className="bg-white text-green-700 font-black text-2xl px-12 py-6 rounded-full shadow-2xl hover:scale-110 transition-all"
             >
-              🎯 Connect Wallet
+              Connect & Play
             </button>
           </div>
         </div>
